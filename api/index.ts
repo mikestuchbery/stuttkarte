@@ -10,7 +10,7 @@ app.get("/api/vvs/stops", async (req, res) => {
   }
 
   try {
-    const url = `https://efa.vvs.de/vvs/XSLT_STOPFINDER_REQUEST?outputFormat=JSON&type_sf=any&name_sf=${encodeURIComponent(query)}`;
+    const url = `https://efa.vvs.de/vvs/XML_STOPFINDER_REQUEST?outputFormat=JSON&type_sf=any&anyObjFilter_sf=2&itdExtractTariff=1&name_sf=${encodeURIComponent(query)}`;
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -34,7 +34,7 @@ app.get("/api/vvs/nearest", async (req, res) => {
   }
 
   try {
-    const url = `https://efa.vvs.de/vvs/XSLT_COORD_REQUEST?outputFormat=JSON&coordOutputFormat=WGS84[DD.ddddd]&type_1=STOP&name_1=${lon}:${lat}:WGS84&radius_1=1000&max_1=5`;
+    const url = `https://efa.vvs.de/vvs/XSLT_COORD_REQUEST?outputFormat=JSON&coordOutputFormat=WGS84[DD.ddddd]&type_1=STOP&name_1=${lon}:${lat}:WGS84&radius_1=1000&max_1=5&itdExtractTariff=1`;
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

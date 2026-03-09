@@ -25,23 +25,24 @@ export interface FareResult {
   breakdown: string[];
 }
 
-// VVS Price Table (Effective Jan 1, 2026)
+// VVS Price Table (Effective Feb 1, 2026)
 const PRICES = {
   single: {
-    adult: [0, 3.50, 4.30, 5.90, 7.50, 9.10], // index = zones
-    child: [0, 1.70, 2.10, 2.90, 3.60, 4.40],
+    adult: [0, 3.70, 4.50, 6.20, 7.90, 9.60], // index = zones
+    child: [0, 1.80, 2.20, 3.00, 3.80, 4.60],
   },
   short: {
-    adult: 1.90,
-    child: 1.00,
+    adult: 2.00,
+    child: 1.10,
   },
   day: {
-    single: [0, 7.00, 8.60, 11.80, 15.00, 18.20],
-    group: [0, 15.20, 15.20, 21.00, 21.00, 21.00],
+    single: [0, 7.40, 9.00, 12.40, 15.80, 19.20],
+    child: 3.70, // Child Day Ticket is valid for the entire network (Netz)
+    group: [0, 16.10, 16.10, 22.20, 22.20, 22.20],
   },
   day9am: {
-    single: [0, 6.30, 7.70, 10.60, 13.50, 16.40],
-    group: [0, 13.00, 13.00, 18.40, 18.40, 18.40],
+    single: [0, 6.70, 8.10, 11.20, 14.20, 17.30],
+    group: [0, 13.70, 13.70, 19.40, 19.40, 19.40],
   }
 };
 
@@ -55,6 +56,21 @@ export function calculateBestFare(
 ): FareResult {
   const zones = zoneInfo.count;
   const zoneList = zoneInfo.list;
+  
+  // Ringfence check: If any zone is unknown, we are outside the VVS network
+  if (zoneList.includes('?')) {
+    return {
+      ticket: "Outside VVS Network",
+      price: 0,
+      zones: 0,
+      zoneList: zoneList,
+      explanation: isTouristMode
+        ? "One or more of your stops are outside the VVS network area. We can only calculate fares within the VVS integrated tariff area."
+        : "Journey involves stops outside the VVS integrated tariff area. Please ensure all stops are within the VVS network.",
+      type: 'outside',
+      breakdown: ["Outside VVS Network Area"]
+    };
+  }
   
   // Calculate total people who normally need a ticket
   const totalAdults = counts.adults + counts.students + counts.seniors;
@@ -84,6 +100,7 @@ export function calculateBestFare(
   if (journeyType === 'multiple') totalSinglePrice = totalSingleOneWay * 3; // Assume at least 3 for "multiple"
 
   // 2. Day Tickets (Standard vs 9 AM)
+  // Note: Child Day Ticket is always the same price and valid all day
   const dayTable = isAfter9AM ? PRICES.day9am : PRICES.day;
   
   // Find optimal combination of Group and Individual Day Tickets
@@ -93,30 +110,39 @@ export function calculateBestFare(
 
   if (totalChargeable > 0) {
     const groupBasePrice = dayTable.group[zones] || dayTable.group[5];
-    const individualBasePrice = dayTable.single[zones] || dayTable.single[5];
+    const adultDayBasePrice = dayTable.single[zones] || dayTable.single[5];
+    const childDayBasePrice = PRICES.day.child; // Child day ticket is always Netz
     
     // We try using 0 to N group tickets and fill the rest with individual tickets
-    for (let numGroups = 0; numGroups <= Math.ceil(totalChargeable / 1); numGroups++) {
-      const coveredByGroups = numGroups * 5;
-      const remaining = Math.max(0, totalChargeable - coveredByGroups);
+    // A group ticket covers up to 5 people (adults or children)
+    const maxGroups = Math.ceil(totalChargeable / 1); // Safety bound
+    for (let numGroups = 0; numGroups <= Math.ceil(totalChargeable / 5) + 1; numGroups++) {
+      const remainingAdults = Math.max(0, chargeableAdults - (numGroups * 5));
+      const remainingChildren = Math.max(0, chargeableChildren - Math.max(0, (numGroups * 5) - chargeableAdults));
       
-      const currentPrice = (numGroups * groupBasePrice) + (remaining * individualBasePrice);
+      const currentPrice = (numGroups * groupBasePrice) + 
+                          (remainingAdults * adultDayBasePrice) + 
+                          (remainingChildren * childDayBasePrice);
       
       if (currentPrice < optimalDayPrice) {
         optimalDayPrice = currentPrice;
         optimalDayBreakdown = [];
         if (numGroups > 0) optimalDayBreakdown.push(`${numGroups}x ${isAfter9AM ? '9-Uhr-GruppenTagesTicket' : 'Group Day Ticket'}`);
-        if (remaining > 0) optimalDayBreakdown.push(`${remaining}x ${isAfter9AM ? '9-Uhr-TagesTicket (Single)' : 'Day Ticket (Single)'}`);
+        if (remainingAdults > 0) optimalDayBreakdown.push(`${remainingAdults}x ${isAfter9AM ? '9-Uhr-TagesTicket (Adult)' : 'Day Ticket (Adult)'}`);
+        if (remainingChildren > 0) optimalDayBreakdown.push(`${remainingChildren}x Child Day Ticket`);
         
-        if (numGroups > 0 && remaining > 0) {
-          optimalDayName = isAfter9AM ? '9-Uhr-Ticket Combo' : 'Day Ticket Combo';
+        const hasMultipleTypes = (numGroups > 0 ? 1 : 0) + (remainingAdults > 0 ? 1 : 0) + (remainingChildren > 0 ? 1 : 0) > 1;
+        
+        if (hasMultipleTypes) {
+          optimalDayName = 'Day Ticket Combo';
         } else if (numGroups > 0) {
           optimalDayName = isAfter9AM ? '9-Uhr-GruppenTagesTicket' : 'Group Day Ticket';
+        } else if (remainingAdults > 0) {
+          optimalDayName = isAfter9AM ? '9-Uhr-TagesTicket' : 'Day Ticket';
         } else {
-          optimalDayName = isAfter9AM ? '9-Uhr-TagesTicket (Single)' : 'Day Ticket (Single)';
+          optimalDayName = 'Child Day Ticket';
         }
       }
-      if (coveredByGroups >= totalChargeable) break;
     }
   }
 
@@ -185,6 +211,15 @@ export function calculateBestFare(
         breakdown: [`${dtHolders}x Deutschlandticket (Already paid)`]
       };
     }
+    
+    return {
+      ticket: "No Ticket Needed",
+      price: 0,
+      zones: zones,
+      explanation: "Please select at least one passenger who needs a ticket.",
+      type: 'none',
+      breakdown: []
+    };
   }
 
   const best = validOptions.reduce((prev, curr) => prev.price < curr.price ? prev : curr);

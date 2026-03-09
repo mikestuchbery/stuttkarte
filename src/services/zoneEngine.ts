@@ -13,32 +13,60 @@ export interface ZoneInfo {
 
 const ZONE_FALLBACKS: Record<string, string> = {
   'stuttgart': '1',
+  'hbf': '1',
+  'hauptbahnhof': '1',
+  'schlossplatz': '1',
+  'charlottenplatz': '1',
+  'stadtbibliothek': '1',
+  'neckarpark': '1',
+  'wilhelma': '1',
+  'killesberg': '1',
+  'degerloch': '1',
+  'möhringen': '1',
+  'vaihingen': '1',
+  'zuffenhausen': '1',
+  'feuerbach': '1',
+  'cannstatt': '1',
   'ludwigsburg': '2',
   'esslingen': '2',
-  'böblingen': '3',
-  'sindelfingen': '3',
-  'leonberg': '2',
-  'waiblingen': '2',
   'fellbach': '2',
+  'waiblingen': '2',
+  'leonberg': '2',
+  'gerlingen': '2',
+  'ditzingen': '2',
+  'korntal': '2',
+  'münchingen': '2',
+  'stetten': '2',
+  'musberg': '2',
+  'leinfelden': '2',
+  'echterdingen': '2',
   'flughafen': '2',
   'messe': '2',
+  'harthausen': '2',
+  'ostfildern': '2',
+  'ruit': '2',
+  'nellingen': '2',
+  'böblingen': '3',
+  'sindelfingen': '3',
   'holzgerlingen': '3',
-  'aich': '3',
-  'aichtal': '3',
-  'metzingen': '5',
-  'tübingen': '5',
-  'reutlingen': '5',
   'nürtingen': '3',
   'kirchheim': '3',
   'schorndorf': '3',
   'backnang': '3',
   'bietigheim': '3',
-  'vaihingen': '4',
   'herrenberg': '3',
   'marbach': '3',
   'winnenden': '3',
-  'geislingen': '5',
+  'denkendorf': '3',
+  'neuhausen': '3',
+  'aich': '3',
+  'aichtal': '3',
+  'vaihingen an der enz': '4',
   'göppingen': '4',
+  'metzingen': '5',
+  'tübingen': '5',
+  'reutlingen': '5',
+  'geislingen': '5',
 };
 
 export function estimateZones(stops: Stop[]): ZoneInfo {
@@ -90,14 +118,28 @@ export function estimateZones(stops: Stop[]): ZoneInfo {
   }
 
   // 2. Fallback Heuristic: 
-  // Based on the number of unique stops in the journey
+  // If we have no real zones, we try to guess based on common city names
+  // or just use a slightly smarter stop-count heuristic.
   const uniqueStops = new Set(stops.map(s => s.name)).size;
+  const stopNames = stops.map(s => s.name.toLowerCase());
   
+  // Check if any stop is outside Stuttgart (Zone 1)
+  const hasStuttgart = stopNames.some(n => n.includes('stuttgart') || n.includes('hbf') || n.includes('hbf'));
+  const hasOutside = stopNames.some(n => !n.includes('stuttgart') && !n.includes('hbf'));
+
   let count = 1;
-  if (uniqueStops <= 2) count = 1;
-  else if (uniqueStops <= 4) count = 2;
-  else if (uniqueStops <= 6) count = 3;
-  else count = 5;
+  if (uniqueStops <= 1) {
+    count = 1;
+  } else if (hasStuttgart && hasOutside) {
+    // If one is in Stuttgart and one is outside, it's at least 2 zones
+    count = Math.max(2, Math.min(5, uniqueStops - 1));
+  } else if (uniqueStops >= 5) {
+    count = 3;
+  } else if (uniqueStops >= 3) {
+    count = 2;
+  } else {
+    count = 1;
+  }
 
   return { count, list: [] };
 }

@@ -29,8 +29,17 @@ export async function searchStops(query: string, signal?: AbortSignal): Promise<
 
     return points
       .filter((point: any) => {
-        const type = point.anyType || point.type;
-        return type === 'stop' || type === 'poi' || type === 'address';
+        const type = (point.anyType || point.type || '').toLowerCase();
+        const id = point.stateless || (point.ref && point.ref.id) || point.id || '';
+        
+        // Include actual transit stops, stations, and localities
+        const isTransitType = type === 'stop' || type === 'station' || type === 'poi' || type === 'suburb' || type === 'locality';
+        
+        // Ringfence: VVS area stops usually start with de:081 (Stuttgart Region)
+        // We allow some flexibility but prioritize regional IDs
+        const isRegional = id.startsWith('de:081') || id.startsWith('081') || !id.includes(':');
+        
+        return isTransitType && isRegional;
       })
       .map((point: any) => {
         // Extract tariff zones if available
@@ -38,13 +47,22 @@ export async function searchStops(query: string, signal?: AbortSignal): Promise<
         const rawZones = point.tariffZones || point.tariffZoneList;
         
         if (rawZones) {
+          const normalizeZone = (z: any) => {
+            const val = (typeof z === 'object' ? (z.zone || z.id) : z).toString().replace(/\D/g, '');
+            const num = parseInt(val, 10);
+            if (isNaN(num)) return '';
+            // VVS 10-based to 1-based conversion
+            if (num >= 10) return Math.min(5, Math.floor(num / 10)).toString();
+            return Math.min(5, num).toString();
+          };
+
           if (Array.isArray(rawZones)) {
-            zones = rawZones.map((z: any) => (z.zone || z.id || z.toString()).replace(/\D/g, ''));
+            zones = rawZones.map(normalizeZone);
           } else if (typeof rawZones === 'string') {
-            zones = rawZones.split(',').map(z => z.trim().replace(/\D/g, ''));
+            zones = rawZones.split(',').map(z => normalizeZone(z.trim()));
           } else if (rawZones.zone) {
             const zList = Array.isArray(rawZones.zone) ? rawZones.zone : [rawZones.zone];
-            zones = zList.map((z: any) => (typeof z === 'object' ? (z.zone || z.id) : z).toString().replace(/\D/g, ''));
+            zones = zList.map(normalizeZone);
           }
         }
 
@@ -79,13 +97,22 @@ export async function getNearestStop(lat: number, lon: number): Promise<Stop | n
     const rawZones = point.tariffZones || point.tariffZoneList;
     
     if (rawZones) {
+      const normalizeZone = (z: any) => {
+        const val = (typeof z === 'object' ? (z.zone || z.id) : z).toString().replace(/\D/g, '');
+        const num = parseInt(val, 10);
+        if (isNaN(num)) return '';
+        // VVS 10-based to 1-based conversion
+        if (num >= 10) return Math.min(5, Math.floor(num / 10)).toString();
+        return Math.min(5, num).toString();
+      };
+
       if (Array.isArray(rawZones)) {
-        zones = rawZones.map((z: any) => (z.zone || z.id || z.toString()).replace(/\D/g, ''));
+        zones = rawZones.map(normalizeZone);
       } else if (typeof rawZones === 'string') {
-        zones = rawZones.split(',').map(z => z.trim().replace(/\D/g, ''));
+        zones = rawZones.split(',').map(z => normalizeZone(z.trim()));
       } else if (rawZones.zone) {
         const zList = Array.isArray(rawZones.zone) ? rawZones.zone : [rawZones.zone];
-        zones = zList.map((z: any) => (typeof z === 'object' ? (z.zone || z.id) : z).toString().replace(/\D/g, ''));
+        zones = zList.map(normalizeZone);
       }
     }
 

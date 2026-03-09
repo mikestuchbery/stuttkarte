@@ -117,6 +117,12 @@ export default function App() {
   const handleCalculate = () => {
     if (!origin.name || !destination.name) return;
 
+    const totalPeople = counts.adults + counts.children + counts.under6 + counts.students + counts.seniors;
+    if (totalPeople === 0) {
+      alert("Please add at least one passenger.");
+      return;
+    }
+
     const allStops = [origin, ...intermediates, destination].filter(s => s.name);
     const zoneInfo = estimateZones(allStops);
     
@@ -170,7 +176,10 @@ export default function App() {
               <div className="bg-orange-500 p-2 rounded-xl">
                 <Train className="text-white h-5 w-5" />
               </div>
-              <h1 className="font-black text-xl tracking-tight">Stutt<span className="text-orange-500">karte</span> <span className="text-[10px] bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-500 align-top ml-1">BETA</span></h1>
+              <div>
+                <h1 className="font-black text-xl tracking-tight leading-none">Stutt<span className="text-orange-500">karte</span> <span className="text-[10px] bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-500 align-top ml-1">BETA</span></h1>
+                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-1">VVS Stuttgart Network Only</p>
+              </div>
             </div>
             <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-full">
               {(['beginner', 'expert'] as UIMode[]).map((mode) => (
@@ -310,6 +319,14 @@ export default function App() {
                         <button onClick={() => updateCount('children', -1)} className="w-8 h-8 rounded-full border border-zinc-200">-</button>
                         <span className="font-bold">{counts.children}</span>
                         <button onClick={() => updateCount('children', 1)} className="w-8 h-8 rounded-full border border-zinc-200">+</button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold">Under 6</span>
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => updateCount('under6', -1)} className="w-8 h-8 rounded-full border border-zinc-200">-</button>
+                        <span className="font-bold">{counts.under6}</span>
+                        <button onClick={() => updateCount('under6', 1)} className="w-8 h-8 rounded-full border border-zinc-200">+</button>
                       </div>
                     </div>
                   </div>
@@ -807,15 +824,31 @@ export default function App() {
           </div>
         )}
 
-        {/* Disclaimer */}
-        <div className="flex gap-2 items-start px-2 py-4 opacity-50">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <p className="text-[10px] leading-tight">
-            This app provides ticket recommendations based on estimated zones. 
-            Prices are approximate. Always check official VVS channels for the most accurate information. 
-            No live departure times provided.
-          </p>
-        </div>
+        {/* Footer */}
+        <footer className="mt-8 pt-8 border-t border-zinc-200 px-2 pb-12 space-y-6 text-center">
+          <div className="flex gap-2 items-center justify-center opacity-50">
+            <AlertCircle className="h-3 w-3 shrink-0" />
+            <p className="text-[9px] leading-tight text-left max-w-[280px]">
+              This app provides ticket recommendations based on estimated zones. 
+              Prices are approximate. Always check official VVS channels for the most accurate information. 
+              No live departure times provided.
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <p className="text-xs text-zinc-500">
+              A labour of love by <span className="font-bold text-zinc-900">Mike Stuchbery</span>.
+            </p>
+            <p className="text-xs text-zinc-500">
+              <a href="mailto:michaelstuchbery@gmail.com" className="text-orange-600 font-bold hover:underline">
+                Questions, comments, feedback.
+              </a>
+            </p>
+            <p className="text-[10px] text-zinc-400">
+              © 2026 Mike Stuchbery
+            </p>
+          </div>
+        </footer>
       </main>
     </div>
   );
