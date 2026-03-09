@@ -13,6 +13,7 @@ import {
   ArrowRightLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Analytics } from '@vercel/analytics/react';
 import StationSearch from './components/StationSearch';
 import LoadingScreen from './components/LoadingScreen';
 import { Stop } from './services/api';
@@ -850,6 +851,7 @@ export default function App() {
           </div>
         </footer>
       </main>
+      <Analytics />
     </div>
   );
 }
