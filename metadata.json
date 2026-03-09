@@ -1,0 +1,5 @@
+{
+  "name": "Stuttkarte",
+  "description": "Stuttkarte helps you work out which tickets to buy for Stuttgart public transport (VVS).",
+  "requestFramePermissions": ["geolocation"]
+}
